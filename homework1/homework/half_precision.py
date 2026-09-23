@@ -2,7 +2,7 @@ from pathlib import Path
 
 import torch
 
-from .bignet import BIGNET_DIM, LayerNorm  # noqa: F401
+from .bignet import BIGNET_DIM, LayerNorm
 
 
 class HalfLinear(torch.nn.Linear):
@@ -17,14 +17,22 @@ class HalfLinear(torch.nn.Linear):
         Feel free to use the torch.nn.Linear class as a parent class (it makes load_state_dict easier, names match).
         Feel free to set self.requires_grad_ to False, we will not backpropagate through this layer.
         """
-        # TODO: Implement me
-        raise NotImplementedError()
+        self.half()
+        
+        
+        self.weight.requires_grad = False
+        if self.bias is not None:
+            self.bias.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Hint: Use the .to method to cast a tensor to a different dtype (i.e. torch.float16 or x.dtype)
-        # The input and output should be of x.dtype = torch.float32
-        # TODO: Implement me
-        raise NotImplementedError()
+        original_dtype = x.dtype
+        
+        
+        x_half = x.to(torch.float16)
+        out_half = super().forward(x_half)
+        
+        
+        return out_half.to(original_dtype)
 
 
 class HalfBigNet(torch.nn.Module):
@@ -36,16 +44,25 @@ class HalfBigNet(torch.nn.Module):
     class Block(torch.nn.Module):
         def __init__(self, channels: int):
             super().__init__()
-            # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-            raise NotImplementedError()
+            self.model = torch.nn.Sequential(
+                HalfLinear(channels, channels),
+                torch.nn.ReLU(),
+                HalfLinear(channels, channels),
+            )
 
         def forward(self, x: torch.Tensor):
             return self.model(x) + x
 
     def __init__(self):
         super().__init__()
-        # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-        raise NotImplementedError()
+        self.layer_norm = LayerNorm(BIGNET_DIM)
+        
+        # 2. Build the main model architecture using a chain of blocks
+        # Based on standard bignet architectures, it maps input channels using Block modules
+        self.model = torch.nn.Sequential(
+            self.layer_norm,
+            self.Block(BIGNET_DIM)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
@@ -58,3 +75,4 @@ def load(path: Path | None) -> HalfBigNet:
     if path is not None:
         net.load_state_dict(torch.load(path, weights_only=True))
     return net
+
