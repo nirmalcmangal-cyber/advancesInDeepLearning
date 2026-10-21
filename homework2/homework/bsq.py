@@ -74,11 +74,17 @@ class Tokenizer:
         self.model = model
 
     @torch.no_grad()
-    def encode(self, x):
-        return self.model.encode_index(x)
-
     def encode_index(self, x):
         return self.model.encode_index(x)
+
+    @torch.no_grad()
+    def decode_index(self, x):
+        return self.model.decode_index(x)
+
+    def to(self, device):
+        if hasattr(self.model, 'to'):
+            self.model = self.model.to(device)
+        return self
 
 def load(model_path=None):
     if model_path is None:

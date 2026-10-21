@@ -9,7 +9,7 @@ class AutoregressiveModel(nn.Module):
         self.token_emb = nn.Embedding(vocab_size + 1, embedding_dim)
         self.pos_emb = nn.Parameter(torch.zeros(1, max_seq_len, embedding_dim))
 
-        encoder_layer = nn.TransformerEncoderLayer(
+        encoder_layer = nn.TransformerEncoderLayer( 
             d_model=embedding_dim,
             nhead=nhead,
             dim_feedforward=embedding_dim * 4,
@@ -21,12 +21,15 @@ class AutoregressiveModel(nn.Module):
 
     def forward(self, x):
         if isinstance(x, dict):
-            x = x["indices"]
+            x = x.get("indices", x.get("input_ids", list(x.values())[0]))
 
+        # Standardize any input to 2D [B, S]
         is_3d = (x.ndim == 3)
         if is_3d:
             b, h, w = x.shape
             x_flat = x.reshape(b, -1)
+        elif x.ndim == 1:
+            x_flat = x.unsqueeze(0)
         else:
             x_flat = x
 
@@ -42,18 +45,20 @@ class AutoregressiveModel(nn.Module):
         return logits, {}
 
     @torch.no_grad()
-    def generate(self, start_tokens, max_len=600, temperature=1.0, device=None):
+    def generate(self, start_tokens, h=None, w=None, temperature=1.0, device=None):
         if device is None:
             device = next(self.parameters()).device
-        
+
         if isinstance(start_tokens, int):
             b = start_tokens
+            max_len = h * w
             generated = torch.zeros((b, 1), dtype=torch.long, device=device)
         else:
             if start_tokens.ndim == 3:
                 b, h, w = start_tokens.shape
                 start_tokens = start_tokens.view(b, -1)
             b = start_tokens.shape[0]
+            max_len = h * w if (h is not None and w is not None) else start_tokens.shape[1]
             generated = start_tokens.to(device)
 
         for _ in range(max_len - generated.shape[1]):
@@ -62,6 +67,9 @@ class AutoregressiveModel(nn.Module):
             probs = torch.softmax(logits / temperature, dim=-1)
             next_token = torch.multinomial(probs, num_samples=1)
             generated = torch.cat([generated, next_token], dim=1)
+
+        if h is not None and w is not None:
+            generated = generated.view(b, h, w)
         return generated
 
 Autoregressive = AutoregressiveModel

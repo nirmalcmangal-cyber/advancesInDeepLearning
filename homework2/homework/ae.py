@@ -3,7 +3,7 @@ import torch.nn as nn
 from pathlib import Path
 
 class PatchAutoEncoder(nn.Module):
-    def __init__(self, patch_size=5, embedding_dim=64):
+    def __init__(self, patch_size=10, embedding_dim=64):
         super().__init__()
         self.patch_size = patch_size
         self.embedding_dim = embedding_dim
