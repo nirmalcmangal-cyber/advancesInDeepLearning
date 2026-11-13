@@ -74,7 +74,7 @@ class BaseLLM:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=100,
+                max_new_tokens=256,
                 do_sample=do_sample,
                 temperature=temperature if do_sample else None,
                 num_return_sequences=n,
