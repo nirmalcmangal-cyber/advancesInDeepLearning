@@ -43,9 +43,19 @@ class RFTDataset:
     def __getitem__(self, idx):
         question, _, reasoning = self.data[idx]
         # We format it similarly to how CoT format template is expected
-        formatted_q = f"""Question: {question}
-Reasoning:"""
+        formatted_q = f"Question: {question}\nReasoning:"
         return tokenize(self.tokenizer, formatted_q, reasoning)
+    
+class RFTModel(BaseLLM):
+    def format_prompt(self, question: str) -> str:
+        return f"Question: {question}\nReasoning:"
+
+def load() -> RFTModel:
+    from peft import PeftModel
+    llm = RFTModel()
+    llm.model = PeftModel.from_pretrained(llm.model, Path(__file__).parent / "rft_model").to(llm.device)
+    llm.model.eval()
+    return llm    
 
 def train_model(output_dir: str = "homework/rft_model"):
     import torch
