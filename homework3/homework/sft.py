@@ -1,12 +1,17 @@
 from .base_llm import BaseLLM
 from .data import Dataset, benchmark
 
-def load() -> BaseLLM:
+class SFTModel(BaseLLM):
+    def format_prompt(self, question: str) -> str:
+        # Plain question; the model itself generates "<answer>...</answer>"
+        return question
+
+def load() -> SFTModel:
     from pathlib import Path
     from peft import PeftModel
     model_name = "sft_model"
     model_path = Path(__file__).parent / model_name
-    llm = BaseLLM()
+    llm = SFTModel()
     llm.model = PeftModel.from_pretrained(llm.model, model_path).to(llm.device)
     llm.model.eval()
     return llm
@@ -26,13 +31,9 @@ def tokenize(tokenizer, question: str, answer: str):
     return full
 
 def format_example(prompt: str, answer: str) -> dict[str, str]:
-    try:
-        rounded_ans = f"{float(answer):.1f}"
-    except ValueError:
-        rounded_ans = str(answer)
     return {
-        "question": f"{prompt} <answer>",
-        "answer": f"{rounded_ans}</answer>"
+        "question": prompt,
+        "answer": f"<answer>{round(float(answer), 3)}</answer>",
     }
 
 class TokenizedDataset:
@@ -50,7 +51,7 @@ def train_model(output_dir: str, **kwargs):
     import torch
     from transformers import Trainer, TrainingArguments
     from peft import LoraConfig, get_peft_model
-    llm = BaseLLM()
+    llm = SFTModel()
     model = llm.model
     peft_config = LoraConfig(
         r=16,
@@ -94,7 +95,7 @@ def train_model(output_dir: str, **kwargs):
 
 def test_model(ckpt_path: str):
     testset = Dataset("valid")
-    llm = BaseLLM()
+    llm = SFTModel()
     from peft import PeftModel
     llm.model = PeftModel.from_pretrained(llm.model, ckpt_path).to(llm.device)
     benchmark_result = benchmark(llm, testset, 100)
