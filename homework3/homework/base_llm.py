@@ -74,13 +74,14 @@ class BaseLLM:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=256,
+                max_new_tokens=50,
+                min_new_tokens=50,   # forces non-empty, uniform-length continuations
                 do_sample=do_sample,
                 temperature=temperature if do_sample else None,
                 num_return_sequences=n,
                 eos_token_id=self.tokenizer.eos_token_id,
                 pad_token_id=self.tokenizer.pad_token_id,
-            )
+)
 
         input_len = inputs["input_ids"].shape[1]
         decoded = self.tokenizer.batch_decode(outputs[:, input_len:], skip_special_tokens=True)
