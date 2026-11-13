@@ -35,9 +35,19 @@ class BaseLLM:
     ) -> list[str]:
         ...
 
+    @overload
     def batched_generate(
-        self, prompts: list[str], num_return_sequences = None, temperature: float = 0
-    ) -> list[str]:
+        self, prompts: list[str], num_return_sequences: None = None, temperature: float = 0
+    ) -> list[str]: ...
+
+    @overload
+    def batched_generate(
+        self, prompts: list[str], num_return_sequences: int, temperature: float = 0
+    ) -> list[list[str]]: ...
+
+    def batched_generate(
+        self, prompts: list[str], num_return_sequences: int | None = None, temperature: float = 0
+    ) -> list[str] | list[list[str]]:
         from tqdm import tqdm
 
         micro_batch_size = 32
@@ -45,32 +55,40 @@ class BaseLLM:
             return [
                 r
                 for idx in tqdm(
-                    range(0, len(prompts), micro_batch_size), desc=f"LLM Running on Micro Batches {micro_batch_size}"
+                    range(0, len(prompts), micro_batch_size),
+                    desc=f"LLM Running on Micro Batches {micro_batch_size}",
                 )
-                for r in self.batched_generate(prompts[idx : idx + micro_batch_size], num_return_sequences, temperature)
+                for r in self.batched_generate(
+                    prompts[idx : idx + micro_batch_size], num_return_sequences, temperature
+                )
             ]
 
         if not prompts:
             return []
 
-        inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(self.device)
+        n = num_return_sequences or 1
         do_sample = temperature > 0
-        
+
+        inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.device)
+
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=128,
-                temperature=temperature if do_sample else None,
+                max_new_tokens=100,
                 do_sample=do_sample,
+                temperature=temperature if do_sample else None,
+                num_return_sequences=n,
                 eos_token_id=self.tokenizer.eos_token_id,
-                pad_token_id=self.tokenizer.eos_token_id
+                pad_token_id=self.tokenizer.pad_token_id,
             )
-            
+
         input_len = inputs["input_ids"].shape[1]
-        generated_tokens = outputs[:, input_len:]
-        decoded_outputs = self.tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
-        
-        return decoded_outputs
+        decoded = self.tokenizer.batch_decode(outputs[:, input_len:], skip_special_tokens=True)
+
+        if num_return_sequences is None:
+            return decoded
+        # Flat list (prompt-major order) -> one list of n generations per prompt
+        return [decoded[i * n : (i + 1) * n] for i in range(len(prompts))]
 
     def answer(self, *questions) -> list[float]:
         prompts = [self.format_prompt(q) for q in questions]
