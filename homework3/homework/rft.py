@@ -47,6 +47,8 @@ class RFTDataset:
         return tokenize(self.tokenizer, formatted_q, reasoning)
     
 class RFTModel(BaseLLM):
+    max_new_tokens = 50
+    min_new_tokens = 10
     def format_prompt(self, question: str) -> str:
         return f"Question: {question}\nReasoning:"
 
