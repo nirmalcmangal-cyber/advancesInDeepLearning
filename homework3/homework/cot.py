@@ -2,7 +2,10 @@ from .base_llm import BaseLLM
 
 
 class CoTModel(BaseLLM):
+    max_new_tokens = 50
+    min_new_tokens = 5
     def format_prompt(self, question: str) -> str:
+        
         messages = [
             {
                 "role": "system",
