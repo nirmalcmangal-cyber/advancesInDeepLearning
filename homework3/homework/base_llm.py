@@ -6,6 +6,8 @@ checkpoint = "HuggingFaceTB/SmolLM2-360M-Instruct"
 device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 class BaseLLM:
+    max_new_tokens = 30
+    min_new_tokens = 30 
     def __init__(self, checkpoint=checkpoint):
         self.tokenizer = AutoTokenizer.from_pretrained(checkpoint)
         # SmolLM2 needs pad_token defined for batch generation
@@ -74,8 +76,8 @@ class BaseLLM:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=50,
-                min_new_tokens=50,   # forces non-empty, uniform-length continuations
+                max_new_tokens=self.max_new_tokens,
+                min_new_tokens=self.min_new_tokens,
                 do_sample=do_sample,
                 temperature=temperature if do_sample else None,
                 num_return_sequences=n,
