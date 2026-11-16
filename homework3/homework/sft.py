@@ -77,7 +77,9 @@ def train_model(output_dir: str, **kwargs):
         save_strategy="epoch",
         logging_steps=10,
         weight_decay=0.01,
-        remove_unused_columns=False
+        remove_unused_columns=False,
+        save_only_model=True,
+        save_total_limit=1
     )
     trainer = Trainer(
         model=model,
