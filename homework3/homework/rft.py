@@ -90,7 +90,9 @@ def train_model(output_dir: str = "homework/rft_model"):
         per_device_train_batch_size=16,
         logging_steps=5,
         weight_decay=0.01,
-        remove_unused_columns=False
+        remove_unused_columns=False,
+        save_only_model=True,
+        save_total_limit=1
     )
 
     trainer = Trainer(
